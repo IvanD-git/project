@@ -1,0 +1,128 @@
+import matplotlib.pyplot as plt
+import pandas as pd
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import os
+
+def create_gui():
+    """Создаёт графический интерфейс."""
+
+    root = tk.Tk()
+    root.title("Обработка данных")
+
+    # Поля ввода
+    entry_x = tk.Text(root, height=10, width=30)
+    entry_y = tk.Text(root, height=10, width=30)
+
+    tk.Label(root, text="Введите значения X:").grid(row=0, column=0, padx=5, pady=5)
+    entry_x.grid(row=1, column=0, padx=5, pady=5)
+
+    tk.Label(root, text="Введите значения Y:").grid(row=0, column=1, padx=5, pady=5)
+    entry_y.grid(row=1, column=1, padx=5, pady=5)
+
+    # Кнопки
+    btn_frame = tk.Frame(root)
+    btn_frame.grid(row=2, column=0, columnspan=2, pady=10)
+
+    submit_btn = tk.Button(
+        btn_frame,
+        text="Построить график",
+        command=lambda: submit(entry_x, entry_y)
+    )
+    submit_btn.pack(side=tk.LEFT, padx=5)
+
+    load_btn = tk.Button(
+        btn_frame,
+        text="Загрузить данные",
+        command=lambda: load_file(entry_x, entry_y)
+    )
+    load_btn.pack(side=tk.LEFT, padx=5)
+
+    return root
+
+
+
+def plot_data (x_values, y_values):
+    '''Функция для построения графика'''
+    try:
+        x = list(map(float, x_values))
+        y = list(map(float, y_values))
+
+        plt.figure()
+        plt.plot(x,y, marker='o', linestyle = '-')
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.title('График данных')
+        plt.grid(True)
+        plt.show()
+
+    except ValueError:
+        messagebox.showerror("Ошибка", "Неверный формат данных. Убедитесь, что все значения числовые.")
+
+def submit(entry_x, entry_y):
+    '''Обработка кнопки Построить график'''
+
+    x_input = entry_x.get("1.0", tk.END).strip()
+    y_input = entry_y.get("1.0", tk.END).strip()
+
+    if not x_input or not y_input:
+        messagebox.showerror("Ошибка", "Поля X и Y не должны быть пустыми.")
+        return
+
+    x_list = x_input.splitlines()
+    y_list = y_input.splitlines()
+
+    if len(x_list) == len(y_list):
+        plot_data(x_list, y_list)
+    else:
+        messagebox.showerror("Ошибка", "Количество значений X и Y должно совпадать.")
+def load_file(entry_x, entry_y):
+    """Загрузка данных из файла (CSV, XLSX, TXT)"""
+
+    file_path = filedialog.askopenfilename(
+        title="Выберите файл",
+        filetypes=[
+            ("CSV файлы", "*.csv"),
+            ("Excel файлы", "*.xlsx *.xls"),
+            ("Текстовые файлы", "*.txt"),
+            ("Все файлы", "*.*")
+        ]
+    )
+    if not file_path:
+        return  # Отмена выбора файла
+
+    ext = os.path.splitext(file_path)[1].lower()
+
+    try:
+        if ext == ".csv":
+            df = pd.read_csv(file_path)
+        elif ext in [".xlsx", ".xls"]:
+            df = pd.read_excel(file_path)
+        elif ext == ".txt":
+            df = pd.read_csv(file_path, sep=r'\s+', header=None)
+            df.columns = ['x', 'y']
+        else:
+            messagebox.showerror("Ошибка", "Неподдерживаемый формат файла.")
+            return
+
+        if len(df.columns) < 2:
+            messagebox.showerror("Ошибка", "Файл должен содержать как минимум два столбца (X и Y).")
+            return
+
+        x_list = df.iloc[:, 0].astype(str).tolist()
+        y_list = df.iloc[:, 1].astype(str).tolist()
+
+        entry_x.delete("1.0", tk.END)
+        entry_y.delete("1.0", tk.END)
+
+        entry_x.insert(tk.END, "\n".join(x_list))
+        entry_y.insert(tk.END, "\n".join(y_list))
+
+    except Exception as e:
+        messagebox.showerror("Ошибка", f"Не удалось загрузить файл:\n{e}")
+
+
+if __name__ == "__main__":
+    app = create_gui()
+    app.mainloop()
+
