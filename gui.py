@@ -3,6 +3,7 @@ from tkinter import filedialog, messagebox
 import pandas as pd
 import numpy as np
 import os
+import re
 from data_processor import Approximation
 from plotter import Plot
 
@@ -23,21 +24,33 @@ class GUI:
 
     def setup_initial_window(self):
         """Настройка начального окна с полями ввода и кнопками."""
+
+        self.root.grid_rowconfigure(1,weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_columnconfigure(1, weight=1)
+
         self.entry_x = tk.Text(self.root, height=10, width=30)
         self.entry_y = tk.Text(self.root, height=10, width=30)
 
         tk.Label(self.root, text="Введите значения X:").grid(row=0, column=0, padx=5, pady=5)
-        self.entry_x.grid(row=1, column=0, padx=5, pady=5)
+        self.entry_x.grid(row=1, column=0, padx=5, pady=5, sticky='nsew')
 
         tk.Label(self.root, text="Введите значения Y:").grid(row=0, column=1, padx=5, pady=5)
-        self.entry_y.grid(row=1, column=1, padx=5, pady=5)
+        self.entry_y.grid(row=1, column=1, padx=5, pady=5, sticky='nsew')
 
         btn_frame = tk.Frame(self.root)
         btn_frame.grid(row=2, column=0, columnspan=2, pady=10)
 
         tk.Button(btn_frame, text="Загрузить данные", command=self.load_file).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="Построить график", command=self.show_plot_and_approximation).pack(side=tk.LEFT,
-                                                                                                     padx=5)
+        tk.Button(btn_frame, text="Построить график", command=self.show_plot_and_approximation).pack(side=tk.LEFT,padx=5)
+        tk.Button(btn_frame, text="Стереть данные в X", command=self.clear_entry_x).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Стереть данные в Y", command=self.clear_entry_y).pack(side=tk.LEFT, padx=5)
+
+    def clear_entry_x(self):
+        self.entry_x.delete("1.0", tk.END)
+
+    def clear_entry_y(self):
+        self.entry_y.delete("1.0", tk.END)
 
     def get_data(self):
         """Получение данных из полей ввода."""
@@ -45,19 +58,35 @@ class GUI:
         y_input = self.entry_y.get("1.0", tk.END).strip()
 
         if not x_input or not y_input:
-            messagebox.showerror("Ошибка", "Поля X и Y не должны быть пустыми.")
+            messagebox.showerror("Ошибка", "Заполните поля X и Y !")
             return None, None
 
-        x_list = x_input.splitlines()
-        y_list = y_input.splitlines()
+        # Обработка X
+        x_lines = x_input.splitlines()
+        x_list = []
+        for line in x_lines:
+            clean_line = line.strip()
+            if clean_line:
+                parts = re.split(r'[,\s]+', clean_line)
+                x_list.extend(parts)
+
+        # Обработка Y
+        y_lines = y_input.splitlines()
+        y_list = []
+        for line in y_lines:
+            clean_line = line.strip()
+            if clean_line:
+                parts = re.split(r'[,\s]+', clean_line)
+                y_list.extend(parts)
 
         if len(x_list) != len(y_list):
-            messagebox.showerror("Ошибка", "Количество значений X и Y должно совпадать.")
+            messagebox.showerror("Ошибка", "Количество знчений в X b Y должно совпадать")
             return None, None
 
         try:
-            x = np.array([float(x.strip()) for x in x_list if x.strip()])
-            y = np.array([float(y.strip()) for y in y_list if y.strip()])
+            x = np.array([float(val) for val in x_list])
+            y = np.array([float(val) for val in y_list])
+
             if len(x) == 0 or len(y) == 0:
                 messagebox.showerror("Ошибка", "После обработки данных массивы X или Y пусты.")
                 return None, None
@@ -65,7 +94,7 @@ class GUI:
                 messagebox.showerror("Ошибка", "Количество значений X и Y не совпадает после обработки.")
                 return None, None
             if np.all(x == x[0]) or np.all(y == y[0]):
-                messagebox.showerror("Ошибка", "Все значения X или Y одинаковы. Аппроксимация невозможна.")
+                messagebox.showerror("Ошибка", "Все значения X и/или Y одинаковы. Аппроксимация невозможна.")
                 return None, None
             return x, y
         except ValueError as e:
@@ -76,13 +105,16 @@ class GUI:
         """Загрузка данных из файла."""
         file_path = filedialog.askopenfilename(
             title="Выберите файл",
-            filetypes=[("CSV файлы", "*.csv"), ("Excel файлы", "*.xlsx *.xls"), ("Текстовые файлы", "*.txt"),
-                       ("Все файлы", "*.*")]
+            filetypes=[("Все файлы", "*.*"),
+                       ("CSV файлы", "*.csv"),
+                       ("Excel файлы", "*.xlsx *.xls"),
+                       ("Текстовые файлы", "*.txt")]
         )
         if not file_path:
             return
 
         ext = os.path.splitext(file_path)[1].lower()
+
         try:
             if ext == ".csv":
                 df = pd.read_csv(file_path)
@@ -110,6 +142,7 @@ class GUI:
             self.entry_y.delete("1.0", tk.END)
             self.entry_x.insert(tk.END, "\n".join(x_list))
             self.entry_y.insert(tk.END, "\n".join(y_list))
+
         except Exception as e:
             messagebox.showerror("Ошибка", f"Не удалось загрузить файл:\n{str(e)}")
 
@@ -124,7 +157,7 @@ class GUI:
 
         # Открываем окно с кнопками аппроксимации
         if self.approx_window is None or not self.approx_window.winfo_exists():
-            self.approx_window = tk.Toplevel(self.root)
+            self.approx_window = tk.Toplevel(self.root, )
             self.approx_window.title("Выбор метода аппроксимации")
             self.approx_window.geometry("300x300")
 
@@ -182,6 +215,7 @@ class GUI:
 
         entries = []
         checkboxes = []
+
         for i, label in enumerate(labels):
             tk.Label(frame, text=label).grid(row=i + 1, column=0, padx=5, pady=5, sticky="w")
             if approx_type not in ["polynomial", "moving_average"]:
@@ -194,37 +228,42 @@ class GUI:
             if approx_type == "moving_average":
                 entry.insert(0, str(defaults[0]))  # Устанавливаем значение по умолчанию для окна
 
-        def apply():
-            try:
-                params = {}
-                if approx_type == "linear":
-                    k = float(entries[0].get()) if checkboxes[0].get() and entries[0].get().strip() else True
-                    b = float(entries[1].get()) if checkboxes[1].get() and entries[1].get().strip() else True
-                    params = {"k": k, "b": b}
-                elif approx_type == "exponential":
-                    k = float(entries[0].get()) if checkboxes[0].get() and entries[0].get().strip() else True
-                    a = float(entries[1].get()) if checkboxes[1].get() and entries[1].get().strip() else True
-                    params = {"k": k, "a": a}
-                elif approx_type == "logarithmic":
-                    a = float(entries[0].get()) if checkboxes[0].get() and entries[0].get().strip() else True
-                    b = float(entries[1].get()) if checkboxes[1].get() and entries[1].get().strip() else True
-                    params = {"a": a, "b": b}
-                elif approx_type == "moving_average":
-                    window = int(entries[0].get()) if entries[0].get().strip() else defaults[0]
-                    if window <= 0:
-                        raise ValueError("Размер окна должен быть положительным целым числом.")
-                    if self.x_data is not None and window > len(self.x_data):
-                        raise ValueError("Размер окна не может превышать количество точек данных.")
-                    params = {"window": window}
-                elif approx_type == "polynomial":
-                    degree = int(entries[0].get()) if entries[0].get().strip() else 3
-                    params = {"degree": degree}
-                dialog.destroy()
-                self.apply_approximation(approx_type, params)
-            except ValueError as e:
-                messagebox.showerror("Ошибка", f"Неверный ввод: {str(e)}")
+        # Передаём все нужные данные в отдельный метод
+        tk.Button(frame, text="Применить", command=lambda: self.on_apply(
+            approx_type, entries, checkboxes, defaults, dialog)).grid(
+            row=len(labels) + 1, column=0, columnspan=3, pady=10)
 
-        tk.Button(frame, text="Применить", command=apply).grid(row=len(labels) + 1, column=0, columnspan=3, pady=10)
+    def on_apply(self, approx_type, entries, checkboxes, defaults, dialog):
+        """обработке пользовательского ввода и применении параметров аппроксимации"""
+        try:
+            params = {}
+            if approx_type == "linear":
+                k = float(entries[0].get()) if checkboxes[0].get() and entries[0].get().strip() else True
+                b = float(entries[1].get()) if checkboxes[1].get() and entries[1].get().strip() else True
+                params = {"k": k, "b": b}
+            elif approx_type == "exponential":
+                k = float(entries[0].get()) if checkboxes[0].get() and entries[0].get().strip() else True
+                a = float(entries[1].get()) if checkboxes[1].get() and entries[1].get().strip() else True
+                params = {"k": k, "a": a}
+            elif approx_type == "logarithmic":
+                a = float(entries[0].get()) if checkboxes[0].get() and entries[0].get().strip() else True
+                b = float(entries[1].get()) if checkboxes[1].get() and entries[1].get().strip() else True
+                params = {"a": a, "b": b}
+            elif approx_type == "moving_average":
+                window = int(entries[0].get()) if entries[0].get().strip() else defaults[0]
+                if window <= 0:
+                    raise ValueError("Размер окна должен быть положительным целым числом.")
+                if self.x_data is not None and window > len(self.x_data):
+                    raise ValueError("Размер окна не может превышать количество точек данных.")
+                params = {"window": window}
+            elif approx_type == "polynomial":
+                degree = int(entries[0].get()) if entries[0].get().strip() else 3
+                params = {"degree": degree}
+
+            dialog.destroy()
+            self.apply_approximation(approx_type, params)
+        except ValueError as e:
+            messagebox.showerror("Ошибка", f"Неверный ввод: {str(e)}")
 
     def apply_approximation(self, approx_type, params):
         """Применение аппроксимации с заданными параметрами."""
