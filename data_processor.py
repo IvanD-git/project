@@ -228,6 +228,7 @@ class Approximation:
         # Формирование строки полинома
         poly_str = "y = "
         for i, coef in enumerate(coefficients):
+            """i  (степень переменной x) и coef (значение коэффициента) """
             coef = round(coef, 4)
             if abs(coef) < 1e-10:  # Пропускаем коэффициенты, близкие к нулю
                 continue
